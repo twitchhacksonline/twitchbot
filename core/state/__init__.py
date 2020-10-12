@@ -58,7 +58,6 @@ class State:
             if not discard:
                 self.store.save_profile(self.profile)
             self.profile = None
-        self.twitchbot = None
 
     def get_status(self):
         if not self.profile:
@@ -180,10 +179,10 @@ class State:
         hotseat = self.get_hotseat()
         if username not in self.profile.users.keys():
             self.profile.add_new_user(user)
-        if hotseat and username != hotseat.lower():
-            return (False, f"Can't interact while {hotseat} is in the hotseat!")
-        elif username in self.profile.superusers or user.is_mod:
+        if username in self.profile.superusers or user.is_mod:
             return (True, None)
+        elif hotseat and username != hotseat.lower():
+            return (False, f"Can't interact while {hotseat} is in the hotseat!")
         elif username in self.profile.users:
             return self.profile.users[username].can_interact()
 
@@ -197,10 +196,15 @@ class State:
         # MAYBE: Use API to mark redemption as completed/rejected
         pass
 
+    def get_press_delay(self):
+        if not self.box:
+            raise BoxNotInitializedError
+        return self.box.get_delay()
+
     def set_press_delay(self, delay, expiration=None):
         if not self.box:
             raise BoxNotInitializedError
-        self.box.set_delay(delay, expiration)
+        self.box.set_delay(delay, expiration=expiration)
     # endregion profile
 
     # region challenge
@@ -408,11 +412,12 @@ class State:
                     f'channel-subscribe-events-v1.{cid}',
                     f'chat_moderator_actions.{cid}',
                     f'whispers.{cid}']
+        logger.error("Missing configuration for PubSub subscriptions")
         return []
 
     def initialize_twitch(self):
-        if not self.profile:
-            raise NoProfileSelectedError
+        if self.twitchbot:
+            logger.error("Twitch aleady initialized")
         if not self.profile.bot_name:
             self.twitchbot = TwitchBot(self, nick=self.profile.channel_name,
                                        client_id=self.profile.client_id,
@@ -439,14 +444,12 @@ class State:
     def connect_twitch(self):
         if not self.profile:
             raise NoProfileSelectedError
-        if not self.twitchbot or self.twitchbot.connection:
-            return
-        self.twitchbot.connect()
+        if self.twitchbot and not self.twitchbot.connection:
+            self.twitchbot.connect()
 
     def disconnect_twitch(self):
         if not self.profile:
             raise NoProfileSelectedError
-        if not self.twitchbot or not self.twitchbot.connection:
-            return
-        self.twitchbot.disconnect()
+        if self.twitchbot and self.twitchbot.connection:
+            self.twitchbot.disconnect()
     # endregion twitchbot

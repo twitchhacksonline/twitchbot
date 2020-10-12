@@ -102,7 +102,7 @@ class Profile:
             else:
                 new_user = User(username, client_id=self.client_id, channel_id=self.channel_id)
                 new_user.interact = False
-                self.users[user] = new_user
+                self.users[username] = new_user
         logger.info("Added %s to deny list", usernames)
 
     def reset_interact(self, usernames):

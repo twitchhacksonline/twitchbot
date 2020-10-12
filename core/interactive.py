@@ -4,7 +4,8 @@
 
 import cmd
 import logging
-from core.exceptions import ProfileNotFoundError, BoxAlreadyRunningError, BoxNotRunningError
+from core.exceptions import ProfileNotFoundError, BoxAlreadyRunningError, BoxNotRunningError,\
+    ChallengeNotFoundError
 
 logger = logging.getLogger(__name__)
 
@@ -38,13 +39,6 @@ class Interactive(cmd.Cmd):
         """)
 
     def do_profile(self, args):
-        if not args:
-            print("""Profile commands:
-    create - Create a new profile
-    update - Update the selected profile
-    select [id] - Select a different profile
-            """)
-            return
         if 'create' in args:
             channel = input("  Channel name: ")
             bot_nick = input("  Bot nick (optional): ")
@@ -56,27 +50,25 @@ class Interactive(cmd.Cmd):
                 print(f"\nCreated profile '{profile}'")
             else:
                 print("Could not create profile!")
-            return
         elif 'update' in args:
             print("\nNot implemented.... yet..")
-            return
         elif 'select' in args:
+            if self.state.twitchbot:
+                print("\nUnable to switch profiles after twitch has been initialized!\nPlease restart the bot")
+                return
             try:
                 profile = self.state.load_profile(int(args.split()[1]))
                 print(f"\nSelected profile '{profile}'")
             except (TypeError, ValueError, IndexError, ProfileNotFoundError):
                 print("\nPlease provide an existing profile id")
+        else:
+            print("""Profile commands:
+    create - Create a new profile
+    update - Update the selected profile
+    select [id] - Select a different profile
+            """)
 
     def do_challenge(self, args):
-        if not args:
-            print("""Challenge commands:
-    create - Create a new challenge
-    update - Update the selected challenge
-    delete [id] - Delete a challenge
-    select [id] - Select a different challenge
-    list - List all challenges
-            """)
-            return
         if 'create' in args:
             print("  Provider: virtualbox")
             name = input("  VM name: ")
@@ -87,57 +79,59 @@ class Interactive(cmd.Cmd):
                 print(f"\nCreated challenge '{challenge}'")
             else:
                 print("Could not create challenge!")
-            return
         elif 'update' in args:
             print("\nNot implemented.... yet..")
-            return
         elif 'delete' in args:
             print("\nNot implemented.... yet..")
-            return
         elif 'select' in args:
             try:
                 challenge = self.state.select_challenge(int(args.split()[1]))
+                if not challenge:
+                    raise ChallengeNotFoundError
                 print(f"\nSelected challenge '{challenge}'")
-            except (TypeError, ValueError, IndexError, ProfileNotFoundError):
+            except (TypeError, ValueError, IndexError, ProfileNotFoundError, ChallengeNotFoundError):
                 print("\nPlease provide an existing challenge id")
         elif 'list' in args:
             print("\nNot implemented.... yet..")
-            return
+        else:
+            print("""Challenge commands:
+    create - Create a new challenge
+    update - Update the selected challenge
+    delete [id] - Delete a challenge
+    select [id] - Select a different challenge
+    list - List all challenges
+            """)
 
     def do_twitch(self, args):
         """
         Connect or disconnect the TwitchIO Services
         """
-        if not args:
+        if 'init' in args:
+            if self.state.twitchbot:
+                print("Unable to reinitialize!")
+                return
+            self.state.initialize_twitch()
+            print(self.state.twitchbot_status())
+        elif 'disconnect' in args:
+            self.state.disconnect_twitch()
+            print(self.state.twitchbot_status())
+        elif 'connect' in args:
+            self.state.connect_twitch()
+            print(self.state.twitchbot_status())
+        elif 'status' in args:
+            print(self.state.twitchbot_status())
+        else:
             print("""Twitch commands:
     init - Initialize the twitch connection
     connect - Connect the bot to IRC and PubSub websocket
     disconnect - Disconnect the bot
     status - Show the twitch bot connection status
             """)
-            return
-        if 'init' in args:
-            self.state.initialize_twitch()
-        if 'connect' in args:
-            self.state.connect_twitch()
-            return
-        elif 'disconnect' in args:
-            self.state.disconnect_twitch()
-            return
-        else:
-            print(self.state.twitchbot_status())
 
     def do_vm(self, args):
-        if not args:
-            print("""VM commands:
-    start - Start the client
-    stop - Stop and save the client
-    halt - Forcefully shut down the client
-    snapshot - Take a snapshot of the current client state
-            """)
-            return
         if not self.state.challenge or not self.state.box:
             print("\nChallenge or VM not initialized!")
+            args = ''
         if 'start' in args:
             try:
                 print("\nLaunching instance...")
@@ -163,6 +157,13 @@ class Interactive(cmd.Cmd):
             print(f"\nTaking snapshot of '{self.state.box}'...")
             self.state.box.snapshot('Interactive mode')
             print("State has been saved successfully!")
+        else:
+            print("""VM commands:
+    start - Start the client
+    stop - Stop and save the client
+    halt - Forcefully shut down the client
+    snapshot - Take a snapshot of the current client state
+            """)
 
     def do_stream(self, args):
         print("Not implemented.... yet..")

@@ -50,16 +50,21 @@ class VirtualBoxSrv():
     def get_special_keys(self):
         return ' | '.join([x for x in KEYBOARD_KEYS if len(x) > 1])
 
-    def set_delay(self, delay=None, expiration=None):
+    def set_delay(self, delay, expiration=None):
+        self.expiration_time = None
         self.delay = delay
         if expiration:
-            self.expiration_time = expiration
+            self.expiration_time = int(time.time()) + expiration
+        logger.info("Press delay is now %sms, expires in %ssec", self.delay, expiration)
 
     def get_delay(self):
-        if self.delay:
+        if self.delay is not None:
             if not self.expiration_time or (self.expiration_time and self.expiration_time > int(time.time())):
+                logger.debug("Returning changed delay %s", self.delay)
                 return self.delay
+            logger.debug("Resetting delay to default: %s", self.default_delay)
             self.delay = self.default_delay
+        logger.debug("Returning default delay %s", self.default_delay)
         return self.default_delay
 
     def is_running(self):

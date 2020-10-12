@@ -34,13 +34,21 @@ class TwitchBot(commands.Bot):
         return "connected" if self.connection else "not connected"
 
     def connect(self):
-        logger.info("Connecting to TwitchIO services...")
+        if self.loop.is_running():
+            logger.error("Twitch services are already connected")
+            return
+        logger.info("Connecting to Twitch services...")
         self.connection = threading.Thread(target=self.run, args=())
         self.connection.start()
 
     def disconnect(self):
-        logger.info("Disconnecting from TwitchIO services...")
-        self.loop.stop()  # FIXME: There might be a way to catch the RunTimeError?
+        if not self.loop or not self.loop.is_running():
+            logger.error("Twitch services are not connected")
+            return
+        logger.info("Disconnecting from Twitch services...")
+        self.loop.stop()
+        while self.loop.is_running():
+            pass
         self.connection = None
 
     # region websocket
@@ -176,12 +184,13 @@ class TwitchBot(commands.Bot):
         if ctx.author.is_mod:
             if 'mod' in args:
                 help_text = """
-                '!hotseat [username]' to put user in hotseat, omit username to clear hotseat |
-                '!allow username(s)' to allow users to interact |
-                '!deny username(s)' to prevent users from interacting |
-                '!remove username(s)' to reset users interaction state |
-                '!stop [halt] [restore]' to stop, forcefully halt or restore the VM |
-                '!snap' to take a snapshot of the current VM state
+                '!hotseat [username]' |
+                '!allow username(s)' |
+                '!deny username(s)' |
+                '!remove username(s)' |
+                '!stop [halt] [restore]' stop, forcefully halt or restore the VM |
+                '!snap' snapshot the current VM state |
+                '!delay [ms] [seconds]' override keypress delay
                 """
             else:
                 help_text += " | '!help mod' for moderator commands"
@@ -191,7 +200,7 @@ class TwitchBot(commands.Bot):
     async def show_objective(self, ctx):
         objective = "There is no objective set at the moment"
         try:
-            objective = self.state.get_objective()
+            objective = self.state.get_current_objective()
         except NoChallengeSelectedError:
             pass
         objective_text = objective + """ |
@@ -382,4 +391,26 @@ class TwitchBot(commands.Bot):
             await ctx.send("Snapshot created!")
         except (NoChallengeSelectedError, BoxNotInitializedError):
             await ctx.send("No system to take snapshot of")
+
+    @commands.command(name='delay')
+    async def press_delay(self, ctx, *args):
+        if not ctx.author.is_mod:
+            return
+        try:
+            if not args:
+                delay = self.state.get_press_delay()
+                response = f"Press delay is {delay}ms"
+            else:
+                delay = int(args[0])
+                response = f"Press delay is now {delay}ms"
+                expiry = None
+                if len(args) > 1:
+                    expiry = int(args[1])
+                    response += f" for the next {expiry} seconds"
+                self.state.set_press_delay(delay, expiration=expiry)
+            await ctx.send(response)
+        except (NoChallengeSelectedError, BoxNotInitializedError):
+            await ctx.send("There is no challenge running at the moment, please stand by..")
+        except ValueError:
+            await ctx.send("Please provide integer values for delay and expiry")
     # endregion box control
