@@ -47,6 +47,16 @@ class BoxNotFoundError(FileNotFoundError):
     pass
 
 
+class DuplicateFlagError(IndexError):
+    """The flag already exists"""
+    pass
+
+
 class FlagNotFoundError(IndexError):
     """The flag does not exist"""
+    pass
+
+
+class FlagAlreadyCapturedError(Exception):
+    """The flag has already been captured"""
     pass

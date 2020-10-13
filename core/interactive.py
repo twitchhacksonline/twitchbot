@@ -4,10 +4,29 @@
 
 import cmd
 import logging
+from core.objects.flag import FLAG_CAPTURED_SUCCESSFULLY
 from core.exceptions import ProfileNotFoundError, BoxAlreadyRunningError, BoxNotRunningError,\
-    ChallengeNotFoundError
+    ChallengeNotFoundError, DuplicateFlagError, FlagNotFoundError, NoChallengeSelectedError
 
 logger = logging.getLogger(__name__)
+
+
+def _optional_value(question):
+    result = input("(optional) " + question)
+    if not result:
+        return None
+    else:
+        return result
+
+
+def _demand_integer(question):
+    result = None
+    while result is None:
+        try:
+            result = int(input(question))
+            return result
+        except ValueError:
+            print("  Please provide an integer value")
 
 
 class Interactive(cmd.Cmd):
@@ -30,7 +49,8 @@ class Interactive(cmd.Cmd):
         print("""Commands:
     help - This help text
     profile (create|update|select) [id] - Configure profiles
-    challenge (create|update|delete|select|list)- Configure challenges
+    challenge (create|update|delete|select|list) - Configure challenges
+    flag (create|capture|delete|list) - Configure flags in selected challenge
     twitch (init|connect|disconnect|status) - Twitch interaction
     vm (start|stop|halt|snapshot) - Configure the VM
     stream (up|down) - Start or stop the stream (Not implemented)
@@ -40,11 +60,12 @@ class Interactive(cmd.Cmd):
 
     def do_profile(self, args):
         if 'create' in args:
+            select = False
             channel = input("  Channel name: ")
-            bot_nick = input("  Bot nick (optional): ")
-            client_id = input("  Client ID (optional): ")
-            select = input("  Load now? [Y/N]: ")
-            select = select.lower() == 'y'
+            bot_nick = _optional_value("  Bot nick: ")
+            client_id = _optional_value("  Client ID: ")
+            if not self.state.twitchbot:
+                select = input("  Load now? [Y/N]: ").lower() == 'y'
             profile = self.state.create_profile(channel, bot_nick, client_id, select)
             if profile:
                 print(f"\nCreated profile '{profile}'")
@@ -100,6 +121,52 @@ class Interactive(cmd.Cmd):
     delete [id] - Delete a challenge
     select [id] - Select a different challenge
     list - List all challenges
+            """)
+
+    def do_flag(self, args):
+        if not self.state.challenge:
+            print("\nChallenge not initialized!")
+            args = ''
+        if 'create' in args:
+            flag = input("  Flag text: ")
+            level = _demand_integer("  What level does the flag unlock: ")
+            points = _demand_integer("  How many points does the flag reward: ")
+            location = _optional_value("  Location of the flag: ")
+            description = _optional_value("  Describe how to find the flag: ")
+            try:
+                self.state.create_flag(flag, level, points, location=location, description=description)
+            except DuplicateFlagError:
+                print("\nError: Flag aleady exists!")
+            except NoChallengeSelectedError:
+                print("\nSelect a challenge to configure flags on")
+        elif 'capture' in args:
+            flag = input("  flag to capture: ")
+            username = input("  User to reward the flag: ")
+            response = self.state.capture_flag(username.lower(), flag)
+            if response and response[0] == FLAG_CAPTURED_SUCCESSFULLY:
+                print(f"{username} was rewarded {response[1]} points")
+            else:
+                print(f"Error: Could not capture flag: {response[0]}")
+        elif 'delete' in args:
+            try:
+                self.state.delete_flag(args.split()[1])
+            except IndexError:
+                print("Error: Please provide a flag to delete!")
+            except FlagNotFoundError:
+                print("Error: Flag does not exist!")
+            except NoChallengeSelectedError:
+                print("\nSelect a challenge to configure flags on")
+        elif 'list' in args:
+            try:
+                print(self.state.list_flags())
+            except NoChallengeSelectedError:
+                print("\nSelect a challenge to configure flags on")
+        else:
+            print("""Flag commands:
+    create - Create a new flag
+    capture - Mark a flag as captured
+    delete [flag] - Delete a flag
+    list - List all flags
             """)
 
     def do_twitch(self, args):

@@ -2,12 +2,10 @@
 # "Twitch Hacks Online"
 # 2020 - Frank Godo
 
-from core.exceptions import ProviderNotFoundError, FlagNotFoundError
+from core.objects.flag import Flag, FLAG_ALREADY_CAPTURED, FLAG_CAPTURED_SUCCESSFULLY, FLAG_DOES_NOT_EXIST
+from core.exceptions import ProviderNotFoundError, FlagNotFoundError, FlagAlreadyCapturedError, DuplicateFlagError
 
 PROVIDERS = ['virtualbox']
-FLAG_DOES_NOT_EXIST = -1
-FLAG_ALREADY_CAPTURED = 0
-FLAG_CAPTURED_SUCCESSFULLY = 1
 
 
 class Challenge:
@@ -17,7 +15,6 @@ class Challenge:
             raise ProviderNotFoundError
         self.provider = provider
         self.name = name
-        # TODO: Make the flag/hint/level/objective system
         self.level = 0
         self.flags = dict()
         self.hints = set()
@@ -42,26 +39,64 @@ class Challenge:
             #       Return the first applicable one and mark it as revealed
             return self.hints[0]
 
+    # region flags
+    def create_flag(self, flag_text, level, points_value, description=None, location=None):
+        if self.flags.get(flag_text):
+            raise DuplicateFlagError
+        flag = Flag(flag_text, level, points_value, description=description, location=location)
+        self.flags[flag.text] = flag
+
+    def delete_flag(self, flag_text):
+        try:
+            del self.flags[flag_text]
+        except KeyError:
+            raise FlagNotFoundError
+
     def get_flag(self, flag):
         flagobj = self.flags.get(flag)
         if not flagobj:
             raise FlagNotFoundError
         return flagobj
 
-    def submit_flag(self, username, flag):
+    def get_flags(self):
+        return sorted(self.flags.values(), key=Flag.get_level)
+
+    def set_flag(self, flag):
+        self.flags[flag.text] = flag
+
+    def _submit_flag(self, username, flag):
         try:
             flagobj = self.get_flag(flag)
-            if flagobj.submitted:
-                return False
-            else:
-                flagobj.submitted = username
-                return True
-        except (FlagNotFoundError, AttributeError):
-            return False
+            flagobj.capture(username)
+            self.flags[flagobj.text] = flagobj
+            return flagobj
+        except AttributeError:
+            raise FlagNotFoundError
+        except (FlagNotFoundError, FlagAlreadyCapturedError):
+            raise
 
-    def validate_flag(self, username, submitted):
+    def validate_flag(self, username, text):
         for flag in self.flags.keys():
-            if flag in submitted:  # FIXME: Should probably be a bit more picky on the syntax
-                success = self.submit_flag(username, flag)
-                return FLAG_CAPTURED_SUCCESSFULLY if success else FLAG_ALREADY_CAPTURED
-        return FLAG_DOES_NOT_EXIST
+            if flag in text:  # FIXME: Should probably be a bit more picky on the syntax
+                try:
+                    flagobj = self._submit_flag(username, flag)
+                    level = flagobj.get_level()
+                    if self.level < level:
+                        self.level = level
+                    points = flagobj.get_value()
+                    return (FLAG_CAPTURED_SUCCESSFULLY, points)
+                except FlagAlreadyCapturedError:
+                    return (FLAG_ALREADY_CAPTURED, None)
+                except FlagNotFoundError:
+                    continue
+        return (FLAG_DOES_NOT_EXIST, None)
+    # endregion flags
+
+    # region leaderboard
+    def get_challenge_points(self, username):
+        total = 0
+        for flag in self.flags.values():
+            if flag.captured == username:
+                total += flag.value
+        return total
+    # endregion leaderboard

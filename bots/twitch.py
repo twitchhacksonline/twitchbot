@@ -120,23 +120,30 @@ class TwitchBot(commands.Bot):
         try:
             message = json.loads(data.get('data').get('message'))
             message_data = json.loads(message.get('data'))
+            logger.debug("Received whisper message: %s", message_data)
             body = message_data.get('body')
             login = message_data.get('tags').get('login')
-            logger.debug("Whisper message: %s", message_data)
+            display_name = message_data.get('tags').get('display_name')
             if login != self.nick:
                 logger.info(f"Received whisper: {body} from {login}")
-                result = self.state.capture_flag(login, body)
+                result, points = self.state.capture_flag(login, body)
                 # Whispers are kinda broken
                 # They require the user to close and reopen the whisper box to see the response
                 # Not sure why that happens
                 if result == FLAG_DOES_NOT_EXIST:
-                    await self._ws.send_privmsg(self.channel.name, f".w {login} Flag not recognized")
+                    await self._ws.send_privmsg(self.channel.name,
+                                                f".w {login} Flag not recognized")
                 elif result == FLAG_CAPTURED_SUCCESSFULLY:
-                    await self._ws.send_privmsg(self.channel.name, f".w {login} Flag has been captured!")
+                    await self._ws.send_privmsg(self.channel.name,
+                                                f".w {login} Flag has been captured and {points} points rewarded!")
+                    total_points = self.state.get_challenge_points(login)
+                    await self.channel.send(f"""{display_name} received {points} points for submitting a flag
+                                            for a total of {total_points} points!""")
                 elif result == FLAG_ALREADY_CAPTURED:
-                    await self._ws.send_privmsg(self.channel.name, f".w {login} Flag was already captured")
-        except AttributeError:
-            logger.warning("Could not decode whisper")
+                    await self._ws.send_privmsg(self.channel.name,
+                                                f".w {login} Flag was already captured")
+        except (NoChallengeSelectedError, AttributeError):
+            logger.info("Whisper message not handled")
 
     async def event_raw_pubsub(self, data):
         if data.get('type') == 'RESPONSE':

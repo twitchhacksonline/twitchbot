@@ -7,10 +7,11 @@ import logging
 from importlib import import_module
 from core import settings
 from core.vm.virtualbox import VirtualBoxSrv
+from core.objects.flag import FLAG_CAPTURED_SUCCESSFULLY
 from bots.twitch import TwitchBot
 from core.exceptions import ProfileNotFoundError, ChallengeNotFoundError,\
     NoProfileSelectedError, NoChallengeSelectedError, BoxNotInitializedError,\
-    BoxNotRunningError, BoxAlreadyRunningError
+    BoxNotRunningError, BoxAlreadyRunningError, DuplicateFlagError, FlagNotFoundError
 
 logger = logging.getLogger(__name__)
 IRC_SCOPE = ["channel:moderate", "channel_editor", "chat:edit", "chat:read", "whispers:edit", "whispers:read"]
@@ -265,90 +266,104 @@ class State:
     def start_challenge(self, restore=False):
         if not self.challenge:
             raise NoChallengeSelectedError
+        if not self.box:
+            raise BoxNotInitializedError
         try:
             if restore:
                 self.box.restore()
             self.box.launch()
-        except AttributeError:
-            raise BoxNotInitializedError
         except BoxAlreadyRunningError:
             pass
 
     def snapshot_challenge(self, username):
         if not self.challenge:
             raise NoChallengeSelectedError
-        try:
-            self.box.snapshot(username)
-        except AttributeError:
+        if not self.box:
             raise BoxNotInitializedError
+        self.box.snapshot(username)
 
     def stop_challenge(self, save=True):
         if not self.challenge:
             raise NoChallengeSelectedError
+        if not self.box:
+            raise BoxNotInitializedError
         try:
             self.box.shut_down(save)
-        except AttributeError:
-            raise BoxNotInitializedError
         except BoxNotRunningError:
             pass
 
     def get_special_keys(self):
         if not self.challenge:
             raise NoChallengeSelectedError
-        try:
-            return self.box.get_special_keys()
-        except AttributeError:
+        if not self.box:
             raise BoxNotInitializedError
+        return self.box.get_special_keys()
 
     def send_keys(self, keys):
         if not self.challenge:
             raise NoChallengeSelectedError
+        if not self.box:
+            raise BoxNotInitializedError
         try:
             return self.box.send(keys)
-        except AttributeError:
-            raise BoxNotInitializedError
         except BoxNotRunningError:
             raise
 
     def type_text(self, text):
         if not self.challenge:
             raise NoChallengeSelectedError
+        if not self.box:
+            raise BoxNotInitializedError
         try:
             return self.box.type(text)
-        except AttributeError:
-            raise BoxNotInitializedError
         except BoxNotRunningError:
             raise
 
     def release_keys(self):
         if not self.challenge:
             raise NoChallengeSelectedError
+        if not self.box:
+            raise BoxNotInitializedError
         try:
             self.box.release()
-        except AttributeError:
-            raise BoxNotInitializedError
         except BoxNotRunningError:
             raise
 
-    def create_flag(self, flag, level, points=0):
+    def create_flag(self, flag_text, level, points_value, description=None, location=None):
         if not self.challenge:
             raise NoChallengeSelectedError
-        pass
+        try:
+            self.challenge.create_flag(flag_text, level, points_value, description=description, location=location)
+            self.save_challenge()
+        except DuplicateFlagError:
+            raise
 
     def list_flags(self):
         if not self.challenge:
             raise NoChallengeSelectedError
-        return self.challenge.get_flags()
+        return "\n".join(str(flag) for flag in self.challenge.get_flags())
+
+    def get_challenge_points(self, username):
+        if not self.challenge:
+            raise NoChallengeSelectedError
+        return self.challenge.get_challenge_points(username)
 
     def delete_flag(self, flag):
         if not self.challenge:
             raise NoChallengeSelectedError
-        pass
+        try:
+            self.challenge.delete_flag(flag)
+            self.save_challenge()
+        except FlagNotFoundError:
+            raise
 
-    def capture_flag(self, username, flag):
+    def capture_flag(self, username, text):
         if not self.challenge:
             raise NoChallengeSelectedError
-        return -1
+        response = self.challenge.validate_flag(username, text)
+        if response and response[0] == FLAG_CAPTURED_SUCCESSFULLY:
+            self.save_challenge()
+        return response
 
     def create_hint(self, hint, level, cost=0):
         if not self.challenge:
