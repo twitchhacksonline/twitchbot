@@ -12,4 +12,7 @@ class Objective:
             raise
 
     def __str__(self):
-        return self.text
+        return f"Level: {self.level}\tObjective: {self.text}"
+
+    def get_level(self):
+        return self.level

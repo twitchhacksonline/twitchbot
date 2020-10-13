@@ -11,7 +11,8 @@ from core.objects.flag import FLAG_CAPTURED_SUCCESSFULLY
 from bots.twitch import TwitchBot
 from core.exceptions import ProfileNotFoundError, ChallengeNotFoundError,\
     NoProfileSelectedError, NoChallengeSelectedError, BoxNotInitializedError,\
-    BoxNotRunningError, BoxAlreadyRunningError, DuplicateFlagError, FlagNotFoundError
+    BoxNotRunningError, BoxAlreadyRunningError, DuplicateFlagError, FlagNotFoundError,\
+    ObjectiveAlreadyExists
 
 logger = logging.getLogger(__name__)
 IRC_SCOPE = ["channel:moderate", "channel_editor", "chat:edit", "chat:read", "whispers:edit", "whispers:read"]
@@ -386,19 +387,28 @@ class State:
         return self.challenge.reveal_next_hint()
 
     def create_objective(self, objective, level):
+        if not isinstance(level, int):
+            raise ValueError
         if not self.challenge:
             raise NoChallengeSelectedError
-        pass
+        try:
+            self.challenge.create_objective(objective, level)
+            self.save_challenge()
+        except ObjectiveAlreadyExists:
+            raise
 
     def list_objectives(self):
         if not self.challenge:
             raise NoChallengeSelectedError
-        pass
+        return "\n".join(str(objective) for objective in self.challenge.get_objectives())
 
-    def delete_objective(self, objective):
+    def delete_objective(self, level):
+        if not isinstance(level, int):
+            raise ValueError
         if not self.challenge:
             raise NoChallengeSelectedError
-        pass
+        self.challenge.delete_objective(level)
+        self.save_challenge()
 
     def get_current_objective(self):
         if not self.challenge:
@@ -411,10 +421,16 @@ class State:
         else:
             return "There is no objective set at the moment"
 
-    def set_current_objective(self, objective):
+    def set_current_objective(self, text):
         if not self.challenge:
             raise NoChallengeSelectedError
-        self.challenge.objective = objective
+        self.challenge.objective = text
+        self.save_challenge()
+
+    def reset_current_objective(self):
+        if not self.challenge:
+            raise NoChallengeSelectedError
+        self.challenge.update_objective(self.challenge.get_current_level())
         self.save_challenge()
     # endregion challenge
 

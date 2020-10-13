@@ -113,6 +113,9 @@ class Challenge:
         except KeyError:
             pass
 
+    def get_objectives(self):
+        return sorted(self.objectives.values(), key=Objective.get_level)
+
     def get_current_objective(self):
         if self.objective:
             return self.objective
@@ -130,7 +133,10 @@ class Challenge:
         self.objective = text
 
     def update_objective(self, level):
-        objective = self.objectives.get(level)
-        if objective:
-            self.objective = objective.text
+        while level >= 0:
+            objective = self.objectives.get(level)
+            if objective:
+                self.objective = objective.text
+                break
+            level -= 1
     # endregion objectives

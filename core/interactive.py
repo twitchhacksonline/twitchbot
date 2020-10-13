@@ -6,7 +6,8 @@ import cmd
 import logging
 from core.objects.flag import FLAG_CAPTURED_SUCCESSFULLY
 from core.exceptions import ProfileNotFoundError, BoxAlreadyRunningError, BoxNotRunningError,\
-    ChallengeNotFoundError, DuplicateFlagError, FlagNotFoundError, NoChallengeSelectedError
+    ChallengeNotFoundError, DuplicateFlagError, FlagNotFoundError, NoChallengeSelectedError,\
+    ObjectiveAlreadyExists
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +52,7 @@ class Interactive(cmd.Cmd):
     profile (create|update|select) [id] - Configure profiles
     challenge (create|update|delete|select|list) - Configure challenges
     flag (create|capture|delete|list) - Configure flags in selected challenge
+    objective (create|override|reset|delete|list) - Configure the objective
     twitch (init|connect|disconnect|status) - Twitch interaction
     vm (start|stop|halt|snapshot) - Configure the VM
     stream (up|down) - Start or stop the stream (Not implemented)
@@ -68,20 +70,20 @@ class Interactive(cmd.Cmd):
                 select = input("  Load now? [Y/N]: ").lower() == 'y'
             profile = self.state.create_profile(channel, bot_nick, client_id, select)
             if profile:
-                print(f"\nCreated profile '{profile}'")
+                print(f"Created profile '{profile}'")
             else:
                 print("Could not create profile!")
         elif 'update' in args:
-            print("\nNot implemented.... yet..")
+            print("Not implemented.... yet..")
         elif 'select' in args:
             if self.state.twitchbot:
-                print("\nUnable to switch profiles after twitch has been initialized!\nPlease restart the bot")
+                print("Unable to switch profiles after twitch has been initialized!\nPlease restart the bot")
                 return
             try:
                 profile = self.state.load_profile(int(args.split()[1]))
-                print(f"\nSelected profile '{profile}'")
+                print(f"Selected profile '{profile}'")
             except (TypeError, ValueError, IndexError, ProfileNotFoundError):
-                print("\nPlease provide an existing profile id")
+                print("Please provide an existing profile id")
         else:
             print("""Profile commands:
     create - Create a new profile
@@ -97,23 +99,23 @@ class Interactive(cmd.Cmd):
             select = select.lower() == 'y'
             challenge = self.state.create_challenge('virtualbox', name, select=select)
             if challenge:
-                print(f"\nCreated challenge '{challenge}'")
+                print(f"Created challenge '{challenge}'")
             else:
                 print("Could not create challenge!")
         elif 'update' in args:
-            print("\nNot implemented.... yet..")
+            print("Not implemented.... yet..")
         elif 'delete' in args:
-            print("\nNot implemented.... yet..")
+            print("Not implemented.... yet..")
         elif 'select' in args:
             try:
                 challenge = self.state.select_challenge(int(args.split()[1]))
                 if not challenge:
                     raise ChallengeNotFoundError
-                print(f"\nSelected challenge '{challenge}'")
+                print(f"Selected challenge '{challenge}'")
             except (TypeError, ValueError, IndexError, ProfileNotFoundError, ChallengeNotFoundError):
-                print("\nPlease provide an existing challenge id")
+                print("Please provide an existing challenge id")
         elif 'list' in args:
-            print("\nNot implemented.... yet..")
+            print("Not implemented.... yet..")
         else:
             print("""Challenge commands:
     create - Create a new challenge
@@ -125,7 +127,7 @@ class Interactive(cmd.Cmd):
 
     def do_flag(self, args):
         if not self.state.challenge:
-            print("\nChallenge not initialized!")
+            print("Challenge not initialized!")
             args = ''
         if 'create' in args:
             flag = input("  Flag text: ")
@@ -136,9 +138,9 @@ class Interactive(cmd.Cmd):
             try:
                 self.state.create_flag(flag, level, points, location=location, description=description)
             except DuplicateFlagError:
-                print("\nError: Flag aleady exists!")
+                print("Error: Flag aleady exists!")
             except NoChallengeSelectedError:
-                print("\nSelect a challenge to configure flags on")
+                print("Select a challenge to configure flags on")
         elif 'capture' in args:
             flag = input("  flag to capture: ")
             username = input("  User to reward the flag: ")
@@ -155,18 +157,63 @@ class Interactive(cmd.Cmd):
             except FlagNotFoundError:
                 print("Error: Flag does not exist!")
             except NoChallengeSelectedError:
-                print("\nSelect a challenge to configure flags on")
+                print("Select a challenge to configure flags on")
         elif 'list' in args:
             try:
                 print(self.state.list_flags())
             except NoChallengeSelectedError:
-                print("\nSelect a challenge to configure flags on")
+                print("Select a challenge to configure flags on")
         else:
             print("""Flag commands:
     create - Create a new flag
     capture - Mark a flag as captured
     delete [flag] - Delete a flag
     list - List all flags
+            """)
+
+    def do_objective(self, args):
+        if not self.state.challenge:
+            print("Challenge not initialized!")
+            args = ''
+        if 'create' in args:
+            text = input("  Objective text: ")
+            level = _demand_integer("  What level is the objective for: ")
+            try:
+                self.state.create_objective(text, level)
+            except ObjectiveAlreadyExists:
+                print(f"There is already an objective set for level {level}")
+        elif 'override' in args:
+            try:
+                text = input("  Objective text: ")
+                self.state.set_current_objective(text)
+                print("Updated current objective")
+            except NoChallengeSelectedError:
+                print("Select a challenge to configure objectives on")
+        elif 'reset' in args:
+            try:
+                self.state.reset_current_objective()
+                print("Objective has been reset to current level")
+            except NoChallengeSelectedError:
+                print("Select a challenge to configure objectives on")
+        elif 'delete' in args:
+            try:
+                level = args.split()[1]
+                self.state.delete_objective(int(level))
+                print(f"Deleted any objective set on level {level}")
+            except (IndexError, ValueError):
+                print("Error: Please provide the level to delete!")
+        elif 'list' in args:
+            try:
+                print(self.state.list_objectives())
+            except NoChallengeSelectedError:
+                print("Select a challenge to configure objectives on")
+        else:
+            print("""Objective commands:
+    create - Create a new objective
+    override - Override the current objective
+    reset - Reset the objective to current level
+    delete [level] - Delete the objective for a level
+    list - List all objectives
             """)
 
     def do_twitch(self, args):
@@ -197,31 +244,31 @@ class Interactive(cmd.Cmd):
 
     def do_vm(self, args):
         if not self.state.challenge or not self.state.box:
-            print("\nChallenge or VM not initialized!")
+            print("Challenge or VM not initialized!")
             args = ''
         if 'start' in args:
             try:
-                print("\nLaunching instance...")
+                print("Launching instance...")
                 self.state.box.launch()
                 print(f"'{self.state.box}' is now running")
             except BoxAlreadyRunningError:
-                print(f"\n'{self.state.box}' is already running")
+                print(f"'{self.state.box}' is already running")
         elif 'stop' in args:
             try:
-                print(f"\nSaving state and stopping '{self.state.box}'...")
+                print(f"Saving state and stopping '{self.state.box}'...")
                 self.state.box.shut_down(True)
                 print("State has been saved successfully!")
             except BoxNotRunningError:
-                print(f"\n'{self.state.box}' is not running")
+                print(f"'{self.state.box}' is not running")
         elif 'halt' in args:
             try:
-                print(f"\nForcefully shutting down '{self.state.box}'...")
+                print(f"Forcefully shutting down '{self.state.box}'...")
                 self.state.box.shut_down(False)
                 print("Box has been shut down successfully!")
             except BoxNotRunningError:
-                print(f"\n'{self.state.box}' is not running")
+                print(f"'{self.state.box}' is not running")
         elif 'snapshot' in args:
-            print(f"\nTaking snapshot of '{self.state.box}'...")
+            print(f"Taking snapshot of '{self.state.box}'...")
             self.state.box.snapshot('Interactive mode')
             print("State has been saved successfully!")
         else:
@@ -239,9 +286,10 @@ class Interactive(cmd.Cmd):
         print("\n" + self.state.get_status())
 
     def do_quit(self, args):
-        print("\nQuitting. Please wait for cleanup...")
+        print("Quitting. Please wait for cleanup...")
         self.state.cleanup()
         return True
 
     def do_EOF(self, line):
+        print("")
         return self.do_quit([])
