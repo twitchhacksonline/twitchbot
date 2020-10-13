@@ -3,7 +3,9 @@
 # 2020 - Frank Godo
 
 from core.objects.flag import Flag, FLAG_ALREADY_CAPTURED, FLAG_CAPTURED_SUCCESSFULLY, FLAG_DOES_NOT_EXIST
-from core.exceptions import ProviderNotFoundError, FlagNotFoundError, FlagAlreadyCapturedError, DuplicateFlagError
+from core.objects.objective import Objective
+from core.exceptions import ProviderNotFoundError, FlagNotFoundError, FlagAlreadyCapturedError, DuplicateFlagError,\
+    ObjectiveAlreadyExists
 
 PROVIDERS = ['virtualbox']
 
@@ -18,17 +20,14 @@ class Challenge:
         self.level = 0
         self.flags = dict()
         self.hints = set()
-        self.objectives = set()
-        self.objective = ''
+        self.objectives = dict()
+        self.objective = None
 
     def __str__(self):
         return f"{self.name} on {self.provider}"
 
     def get_current_level(self):
         return self.level
-
-    def get_current_objective(self):
-        return self.objective
 
     def reveal_next_hint(self):
         if not self.hints:
@@ -67,7 +66,7 @@ class Challenge:
     def _submit_flag(self, username, flag):
         try:
             flagobj = self.get_flag(flag)
-            flagobj.capture(username)
+            flagobj.capture(username.lower())
             self.flags[flagobj.text] = flagobj
             return flagobj
         except AttributeError:
@@ -83,6 +82,7 @@ class Challenge:
                     level = flagobj.get_level()
                     if self.level < level:
                         self.level = level
+                        self.update_objective(level)
                     points = flagobj.get_value()
                     return (FLAG_CAPTURED_SUCCESSFULLY, points)
                 except FlagAlreadyCapturedError:
@@ -96,7 +96,41 @@ class Challenge:
     def get_challenge_points(self, username):
         total = 0
         for flag in self.flags.values():
-            if flag.captured == username:
+            if flag.captured == username.lower():
                 total += flag.value
         return total
     # endregion leaderboard
+
+    # region objectives
+    def create_objective(self, objective, level):
+        if self.objectives.get(level):
+            raise ObjectiveAlreadyExists
+        self.objectives[level] = Objective(objective, level)
+
+    def delete_objective(self, level):
+        try:
+            del self.objectives[level]
+        except KeyError:
+            pass
+
+    def get_current_objective(self):
+        if self.objective:
+            return self.objective
+        try:
+            return self.objectives.get(self.get_current_level()).text
+        except AttributeError:
+            return None
+
+    def set_current_objective(self, text):
+        """
+        Overrides the current objective
+
+        :param text: The objective text
+        """
+        self.objective = text
+
+    def update_objective(self, level):
+        objective = self.objectives.get(level)
+        if objective:
+            self.objective = objective.text
+    # endregion objectives

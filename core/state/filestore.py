@@ -7,7 +7,9 @@ import pickle
 import logging
 from pathlib import Path
 from core import settings
-from core.objects import Profile, Challenge, User
+from core.objects.profile import Profile
+from core.objects.challenge import Challenge
+from core.objects.user import User
 from core.exceptions import ChallengeNotFoundError, ProfileNotFoundError
 from core.state.store import AbstractStore
 

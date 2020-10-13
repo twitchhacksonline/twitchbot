@@ -60,3 +60,8 @@ class FlagNotFoundError(IndexError):
 class FlagAlreadyCapturedError(Exception):
     """The flag has already been captured"""
     pass
+
+
+class ObjectiveAlreadyExists(IndexError):
+    """The objective has already been set"""
+    pass

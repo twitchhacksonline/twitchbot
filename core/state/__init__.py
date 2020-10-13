@@ -403,9 +403,9 @@ class State:
     def get_current_objective(self):
         if not self.challenge:
             raise NoChallengeSelectedError
-        objective = self.challenge.objective
+        objective = self.challenge.get_current_objective()
         if objective:
-            return self.challenge.objective
+            return objective
         elif not objective and hasattr(settings, 'DEFAULT_OBJECTIVE'):
             return settings.DEFAULT_OBJECTIVE
         else:

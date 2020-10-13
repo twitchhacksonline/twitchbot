@@ -149,7 +149,7 @@ class Interactive(cmd.Cmd):
                 print(f"Error: Could not capture flag: {response[0]}")
         elif 'delete' in args:
             try:
-                self.state.delete_flag(args.split()[1])
+                self.state.delete_flag(args[7:])
             except IndexError:
                 print("Error: Please provide a flag to delete!")
             except FlagNotFoundError:
