@@ -28,6 +28,7 @@ class Profile:
         self.users = dict()
         # Twitch application (API)
         self.client_id = client_id
+        self.tokens = dict()
         self.api_token = None
         self.irc_token = None
         self.bot_id = None
@@ -47,11 +48,6 @@ class Profile:
         Fetch any missing values that can be collected from Twitch API
         Using self.client_id
         """
-        # Candidates:
-        # self.channel_id
-        # self.bot_id
-        # self.api_token
-        # self.irc_token (if self.bot_name)
         pass
 
     def add_new_user(self, user):

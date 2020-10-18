@@ -15,10 +15,6 @@ from core.exceptions import ProfileNotFoundError, ChallengeNotFoundError,\
     ObjectiveAlreadyExists
 
 logger = logging.getLogger(__name__)
-IRC_SCOPE = ["channel:moderate", "channel_editor", "chat:edit", "chat:read", "whispers:edit", "whispers:read"]
-API_SCOPE = ["bits:read", "channel:moderate", "channel:read:redemptions", "channel:read:subscriptions",
-             "channel_subscriptions", "chat:edit", "chat:read", "clips:edit", "moderation:read",
-             "user:edit:broadcast", "whispers:edit", "whispers:read"]
 
 
 class State:
@@ -86,7 +82,7 @@ class State:
             raise ProfileNotFoundError
         expired = self.verify_tokens()
         if expired:
-            self.renew_tokens(expired)
+            self.renew_tokens(*expired)
         if self.profile.challenge:
             try:
                 self.load_challenge(self.profile.challenge)
@@ -101,27 +97,38 @@ class State:
         if self.store:
             self.store.save_profile(self.profile)
 
-    def _verify_token(self, client_id, token):
-        # TODO: Do the actual request
-        return True
-
     def verify_tokens(self):
         if not self.profile:
             raise NoProfileSelectedError
         expired = []
-        if self.profile.api_token:
-            if not self._verify_token(self.profile.client_id, self.profile.api_token):
-                expired.append("api")
-        if self.profile.irc_token:
-            if not self._verify_token(self.profile.client_id, self.profile.irc_token):
-                expired.append("irc")
+        for key, token in self.profile.tokens.items():
+            try:
+                if token.validate():
+                    logger.info("API Token expires %s", token.expiry.ctime())
+                else:
+                    expired.append(key)
+            except AttributeError:
+                logger.error("%s is not a valid Token object!", key)
         return expired
 
-    def _renew_token(self, client_id, scope):
-        pass
+    def renew_tokens(self, *types):
+        if not self.profile:
+            raise NoProfileSelectedError
+        for key in types:
+            try:
+                self.profile.tokens.get(key).generate()
+            except AttributeError:
+                raise
 
-    def renew_tokens(self, *args):
-        pass
+    def get_api_token(self):
+        if not self.profile:
+            raise NoProfileSelectedError
+        return self.profile.tokens.get('api')
+
+    def get_irc_token(self):
+        if not self.profile:
+            raise NoProfileSelectedError
+        return self.profile.tokens.get('irc')
 
     def new_interaction(self, interaction):
         pass
@@ -447,19 +454,21 @@ class State:
         return []
 
     def initialize_twitch(self):
+        if not self.profile:
+            raise NoProfileSelectedError
         if self.twitchbot:
             logger.error("Twitch aleady initialized")
         if not self.profile.bot_name:
             self.twitchbot = TwitchBot(self, nick=self.profile.channel_name,
                                        client_id=self.profile.client_id,
-                                       irc_token=f'oauth:{self.profile.api_token}',
-                                       api_token=self.profile.api_token,
+                                       irc_token=f'oauth:{self.get_api_token()}',
+                                       api_token=self.get_api_token(),
                                        initial_channels=[self.profile.channel_name])
         else:
             self.twitchbot = TwitchBot(self, nick=self.profile.bot_name,
                                        client_id=self.profile.client_id,
-                                       irc_token=f'oauth:{self.profile.irc_token}',
-                                       api_token=self.profile.api_token,
+                                       irc_token=f'oauth:{self.get_irc_token()}',
+                                       api_token=self.get_api_token(),
                                        initial_channels=[self.profile.channel_name])
 
     def twitchbot_status(self):
