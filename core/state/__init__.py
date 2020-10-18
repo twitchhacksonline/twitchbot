@@ -80,9 +80,7 @@ class State:
         self.profile = self.store.load_profile(profile_id)
         if not self.profile:
             raise ProfileNotFoundError
-        expired = self.verify_tokens()
-        if expired:
-            self.renew_tokens(*expired)
+        self.profile.check()
         if self.profile.challenge:
             try:
                 self.load_challenge(self.profile.challenge)
@@ -96,29 +94,6 @@ class State:
             raise NoProfileSelectedError
         if self.store:
             self.store.save_profile(self.profile)
-
-    def verify_tokens(self):
-        if not self.profile:
-            raise NoProfileSelectedError
-        expired = []
-        for key, token in self.profile.tokens.items():
-            try:
-                if token.validate():
-                    logger.info("API Token expires %s", token.expiry.ctime())
-                else:
-                    expired.append(key)
-            except AttributeError:
-                logger.error("%s is not a valid Token object!", key)
-        return expired
-
-    def renew_tokens(self, *types):
-        if not self.profile:
-            raise NoProfileSelectedError
-        for key in types:
-            try:
-                self.profile.tokens.get(key).generate()
-            except AttributeError:
-                raise
 
     def get_api_token(self):
         if not self.profile:
