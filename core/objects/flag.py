@@ -23,8 +23,11 @@ class Flag:
 
         """
         self.text = flag_text
-        self.level = level
-        self.value = points_value
+        try:
+            self.level = int(level)
+            self.value = int(points_value)
+        except ValueError:
+            raise
         self.description = description
         self.location = location
         self.captured = None
