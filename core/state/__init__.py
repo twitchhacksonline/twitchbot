@@ -12,7 +12,7 @@ from bots.twitch import TwitchBot
 from core.exceptions import ProfileNotFoundError, ChallengeNotFoundError,\
     NoProfileSelectedError, NoChallengeSelectedError, BoxNotInitializedError,\
     BoxNotRunningError, BoxAlreadyRunningError, DuplicateFlagError, FlagNotFoundError,\
-    ObjectiveAlreadyExists
+    ObjectiveAlreadyExists, HintNotFoundError, HintMovementError
 
 logger = logging.getLogger(__name__)
 
@@ -351,17 +351,40 @@ class State:
     def create_hint(self, hint, level, cost=0):
         if not self.challenge:
             raise NoChallengeSelectedError
-        pass
+        self.challenge.create_hint(hint, level, cost)
 
     def list_hints(self):
         if not self.challenge:
             raise NoChallengeSelectedError
-        pass
+        hints = []
+        for level in sorted(self.challenge.get_hint_levels()):
+            hints.append(f"Level {level}:")
+            hints += ["\t"+str(hint) for hint in self.challenge.get_hints(level)]
+        return "\n".join(hints)
 
-    def delete_hint(self, hint):
+    def move_hint_up(self, level, index):
         if not self.challenge:
             raise NoChallengeSelectedError
-        pass
+        try:
+            self.challenge.move_hint_up(level, index)
+        except (HintMovementError, HintNotFoundError):
+            raise
+
+    def move_hint_down(self, level, index):
+        if not self.challenge:
+            raise NoChallengeSelectedError
+        try:
+            self.challenge.move_hint_down(level, index)
+        except (HintMovementError, HintNotFoundError):
+            raise
+
+    def delete_hint(self, hint_id):
+        if not self.challenge:
+            raise NoChallengeSelectedError
+        try:
+            self.challenge.delete_hint(hint_id)
+        except HintNotFoundError:
+            raise
 
     def reveal_hint(self):
         if not self.challenge:

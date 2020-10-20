@@ -7,7 +7,7 @@ import logging
 from core.objects.flag import FLAG_CAPTURED_SUCCESSFULLY
 from core.exceptions import ProfileNotFoundError, BoxAlreadyRunningError, BoxNotRunningError,\
     ChallengeNotFoundError, DuplicateFlagError, FlagNotFoundError, NoChallengeSelectedError,\
-    ObjectiveAlreadyExists
+    ObjectiveAlreadyExists, HintNotFoundError, HintMovementError
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +52,7 @@ class Interactive(cmd.Cmd):
     profile (create|update|select) [id] - Configure profiles
     challenge (create|update|delete|select|list) - Configure challenges
     flag (create|capture|delete|list) - Configure flags in selected challenge
+    hint (create|move|delete|list) - Configure hints in selected challenge
     objective (create|override|reset|delete|list) - Configure the objective
     twitch (init|connect|disconnect|status) - Twitch interaction
     vm (start|stop|halt|snapshot) - Configure the VM
@@ -169,6 +170,51 @@ class Interactive(cmd.Cmd):
     capture - Mark a flag as captured
     delete [flag] - Delete a flag
     list - List all flags
+            """)
+
+    def do_hint(self, args):
+        if not self.state.challenge:
+            print("Challenge not initialized!")
+            args = ''
+        if 'create' in args:
+            hint = input("  Hint text: ")
+            level = _demand_integer("  What level is the hint for: ")
+            # cost = _demand_integer("  What is the cost of the hint: ")
+            try:
+                self.state.create_hint(hint, level)
+            except NoChallengeSelectedError:
+                print("Select a challenge to configure flags on")
+        elif 'move' in args:
+            print(self.state.list_hints())
+            level = _demand_integer("  Level of hint to move: ")
+            index = _demand_integer("  ID of hint to move: ")
+            direction = None
+            while direction != 'up' and direction != 'down':
+                direction = input("  Direction to move hint (up|down): ")
+            try:
+                getattr(self.state, 'move_hint_' + direction)(level, index)
+            except (NoChallengeSelectedError, HintNotFoundError, HintMovementError):
+                print("Could not move hint")
+        elif 'delete' in args:
+            try:
+                self.state.delete_hint(int(args[7:]))
+            except (ValueError, IndexError):
+                print("Error: Please provide a hint id to delete!")
+            except HintNotFoundError:
+                print("Error: Flag does not exist!")
+            except NoChallengeSelectedError:
+                print("Select a challenge to configure flags on")
+        elif 'list' in args:
+            try:
+                print(self.state.list_hints())
+            except NoChallengeSelectedError:
+                print("Select a challenge to configure hints on")
+        else:
+            print("""Hint commands:
+    create - Create a new hint
+    move - Move a hint up/down (Hints are revealed in order top-down)
+    delete [hint] - Delete a hint
+    list - List all hints
             """)
 
     def do_objective(self, args):

@@ -65,3 +65,18 @@ class FlagAlreadyCapturedError(Exception):
 class ObjectiveAlreadyExists(IndexError):
     """The objective has already been set"""
     pass
+
+
+class HintNotFoundError(IndexError):
+    """The hint does not exist"""
+    pass
+
+
+class DuplicateHintError(IndexError):
+    """The hint already exists"""
+    pass
+
+
+class HintMovementError(IndexError):
+    """The hint can not be moved in that direction"""
+    pass
