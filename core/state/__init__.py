@@ -460,13 +460,13 @@ class State:
             self.twitchbot = TwitchBot(self, nick=self.profile.channel_name,
                                        client_id=self.profile.client_id,
                                        irc_token=f'oauth:{self.get_api_token()}',
-                                       api_token=self.get_api_token(),
+                                       api_token=str(self.get_api_token()),
                                        initial_channels=[self.profile.channel_name])
         else:
             self.twitchbot = TwitchBot(self, nick=self.profile.bot_name,
                                        client_id=self.profile.client_id,
                                        irc_token=f'oauth:{self.get_irc_token()}',
-                                       api_token=self.get_api_token(),
+                                       api_token=str(self.get_api_token()),
                                        initial_channels=[self.profile.channel_name])
 
     def twitchbot_status(self):
