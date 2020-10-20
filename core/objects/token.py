@@ -25,6 +25,9 @@ class Token:
         self.login = None
         self.expiry = datetime.now()
 
+    def __str__(self):
+        return self.token
+
     def expired(self):
         expired = self.expiry <= datetime.now()
         if expired:
