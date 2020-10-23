@@ -315,6 +315,14 @@ class TwitchBot(commands.Bot):
     # endregion challenge interaction
 
     # region user handling
+    @commands.command(name='leaderboard', aliases=['lb'])
+    async def show_leaderboard(self, ctx, *args):
+        leaderboard = self.state.get_leaderboard(5)
+        if not leaderboard:
+            await ctx.send("Leaderboard is empty!")
+        else:
+            await ctx.send(" | ".join(leaderboard))
+
     @commands.command(name='hotseat', aliases=['hs'])
     async def hotseat_user(self, ctx, *args):
         if ctx.author.is_mod:

@@ -331,6 +331,11 @@ class State:
             raise NoChallengeSelectedError
         return self.challenge.get_challenge_points(username)
 
+    def get_leaderboard(self, number):
+        if not self.challenge:
+            raise NoChallengeSelectedError
+        return self.challenge.get_leaderboard(number)
+
     def delete_flag(self, flag):
         if not self.challenge:
             raise NoChallengeSelectedError

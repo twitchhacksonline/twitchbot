@@ -160,6 +160,15 @@ class Challenge:
             if flag.captured == username.lower():
                 total += flag.value
         return total
+
+    def get_leaderboard(self, number):
+        leaderboard = dict()
+        for flag in self.flags.values():
+            if flag.captured:
+                points = leaderboard.get(flag.captured, 0)
+                leaderboard[flag.captured] = flag.value + points
+        leaders = sorted(leaderboard, key=leaderboard.get, reverse=True)
+        return [f"{leaderboard[leaders[i]]} pts: {leaders[i]}" for i in range(min(number, len(leaders)))]
     # endregion leaderboard
 
     # region objectives
