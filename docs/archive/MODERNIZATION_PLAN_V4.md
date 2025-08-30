@@ -155,9 +155,22 @@ twitchbot/
 │   ├── integration/
 │   └── e2e/
 │
-└── docs/
-    ├── architecture.md
-    ├── deployment.md
+    └── docs/
+        ├── architecture.md
+        ├── deployment.md
+        └── streaming.md
+
+## OBS Integration (Planned)
+
+As part of the v2 rewrite, include optional integration with OBS via obs-websocket 5.x to control basic streaming operations from the bot:
+
+- Start/stop stream: programmatically begin and end the broadcast.
+- Switch scenes/sources: change the active scene and toggle source visibility (e.g., overlays, text, browser sources).
+
+Implementation notes:
+- Use the official obs-websocket v5 protocol (suggested client: obsws-python) with configurable host/port/password.
+- Keep the controller async-friendly and minimal; expose only the operations above initially.
+- Secure credentials via environment variables/Pydantic settings; do not hardcode secrets.
     └── api.md
 ```
 

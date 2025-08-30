@@ -12,7 +12,7 @@
         - `settings.py`: Defaults (logging, delays, objective).
       - `bots/`: Platform adapters (e.g., `twitch.py`).
       - `twitchbot.py`: Entry point module.
-    - `v2/`: Next-gen scaffold (`__main__.py`, WIP/experimental).
+    - `v2/`: Next-gen scaffold (`__main__.py`, WIP).
 - Default data dir: `$HOME/.config/twitchbot/`.
 
 ### Read-only Policy
@@ -26,15 +26,15 @@
 
 ## Build, Test, and Development Commands
 - Create venv: `python3 -m venv .venv && source .venv/bin/activate`.
-- Install deps: `pip install -r requirements.txt`.
+- Install deps: `pip install -r requirements_v1.txt`.
 - Run locally (v1): `PYTHONPATH=src python -m thonline.v1.twitchbot`.
-- VirtualBox SDK (Ubuntu):
+- VirtualBox SDK (Ubuntu, already installed):
   - `export VBOX_INSTALL_PATH=/usr/lib/virtualbox`
   - `python sdk/installer/vboxapisetup.py install`
-- Optional (uv): `uv venv && uv sync` (see `MIGRATION.md`).
 
 ## Coding Style & Naming Conventions
 - Python, 4-space indentation, PEP 8.
+- Use pyright and ruff for styling and linting.
 - Naming: `snake_case` for functions/vars, `PascalCase` for classes, lowercase module names.
 - Logging via `logging`; defaults in `src/thonline/v1/core/settings.py` (update, don’t hardcode paths).
 - Keep modules cohesive by domain (e.g., new models under `src/thonline/v1/core/objects/`).

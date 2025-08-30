@@ -85,6 +85,12 @@ This phase focuses on preparing a modern, reproducible development environment.
 2.  **Implement `ModernTwitchClient`**: Create `src/twitchbot/infrastructure/twitch/client.py`. This client will use `httpx` and the `twitchio.ext.eventsub` WebSocket client. It should not use any legacy IRC functionality.
 3.  **Define Domain Events**: Create `src/twitchbot/domain/events.py` to define structured events like `ChatMessageEvent` and `ChannelPointRedemptionEvent`.
 
+### OBS Integration (Planned)
+- Add optional OBS control via obs-websocket 5.x to:
+  - Start/stop the stream
+  - Switch scenes and toggle source visibility
+- Configure host/port/password via settings; keep implementation async-friendly.
+
 -----
 
 ## Phase 3: Modern Storage Layer

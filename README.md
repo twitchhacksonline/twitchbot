@@ -5,8 +5,8 @@ Bot for Twitch Hacks Online
 ## Prerequisites
 - Python 3.8
 - Pip
-- Virtualbox 6.X
-- [VirtualBox 6.X Software Developer Kit](https://www.virtualbox.org/wiki/Downloads)
+- VirtualBox 7.x (tested on 7.2)
+- [VirtualBox 7.x Software Development Kit (SDK)](https://www.virtualbox.org/wiki/Downloads)
 
 
 ## Notes
@@ -15,14 +15,18 @@ Has only been developed and tested on Linux Ubuntu
 
 # Installation on Ubuntu 18.XX or newer
 
-First install the Downloaded VirtualBox SDK
+First install the VirtualBox SDK Python bindings
 ```
-cd sdk/installer
 export VBOX_INSTALL_PATH='/usr/lib/virtualbox'
-python vboxapisetup.py install
+python ${VBOX_INSTALL_PATH}/sdk/installer/vboxapisetup.py install
 ```
 
-Then you can install the python project reqirements
+Sanity check the SDK can connect to VirtualBox 7.x
+```
+python -c "import virtualbox; print(virtualbox.VirtualBox().version)"
+```
+
+Then you can install the python project requirements
 ```
 pip install -r requirements.txt
 ```
